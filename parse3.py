@@ -290,7 +290,7 @@ def make_monthly_csv(year, month, day):
 
 def make_yearly_csv(year):
     """ DOC DOC """
-    for month in range(1, 13):
+    for month in range(1, 12):
         make_monthly_csv(year, month, 0)
 
 def run(year, month, day):
