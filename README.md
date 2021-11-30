@@ -1,6 +1,8 @@
 Tor Consensus and Server Descriptor Parser
 ------------------------------------------
 
+This is the version of the script that formats the data in a way that it is compatible with [Torflow](https://github.com/unchartedsoftware/torflow)
+
 Script that parses Tor consensuses and server descriptors to create csv files
 that can be used for Tor visualization data.
 
