@@ -12,10 +12,15 @@ GEOIP_FILENAME = "./GeoLite2-City.mmdb"
 
 def geo_ip_lookup(ip_address):
     with geoip2.database.Reader(GEOIP_FILENAME) as reader:
-        response = reader.city(ip_address)
-        if response is None:
+        try:
+            response = reader.city(ip_address)
+        except geoip2.errors.AddressNotFoundError:
             return (False, False)
-        return (response.location.longitude, response.location.latitude)
+        except Exception as e:
+            print("  [-] Error while looking up %s" % (ip_address))
+            return (False, False)
+        else:
+            return (response.location.longitude, response.location.latitude)
 
 def dl_server_descriptors(year, month):
     """ Download server descriptors from CollecTor. """
