@@ -1,21 +1,29 @@
-import os, sys
+import os
+import sys
 import stem
 import urllib.request
 import time
-import pygeoip
+import geoip2.database
 import tarfile
 import shutil
 
 from stem.descriptor import DocumentHandler, parse_file
 
-GEOIP_FILENAME = "GeoLiteCity.dat"
-geoip_db = None
+GEOIP_FILENAME = "./GeoLite2-City.mmdb"
+
 
 def geo_ip_lookup(ip_address):
-    record = geoip_db.record_by_addr(ip_address)
-    if record is None:
-        return (False, False)
-    return (record['longitude'], record['latitude'])
+    with geoip2.database.Reader(GEOIP_FILENAME) as reader:
+        try:
+            response = reader.city(ip_address)
+        except geoip2.errors.AddressNotFoundError:
+            return (False, False)
+        except Exception as e:
+            print("  [-] Error while looking up %s" % (ip_address))
+            return (False, False)
+        else:
+            return (response.location.longitude, response.location.latitude)
+
 
 def dl_server_descriptors(year, month):
     """ Download server descriptors from CollecTor. """
@@ -38,7 +46,7 @@ def dl_server_descriptors(year, month):
     try:
         request = urllib.request.urlopen("%s/%s" % (url, filename))
         if request.code != 200:
-            print("  [-] Unable to fetch server descriptors %s at %s" % \
+            print("  [-] Unable to fetch server descriptors %s at %s" %
                   (filename, url))
             return None
     except Exception as e:
@@ -48,6 +56,7 @@ def dl_server_descriptors(year, month):
     fp.write(request.read())
     fp.close()
     return save_path
+
 
 def dl_consensus(year, month):
     """ Download consensus from CollecTor. """
@@ -81,6 +90,7 @@ def dl_consensus(year, month):
     fp.close()
     return save_path
 
+
 def dl_extra_infos(year, month):
     """ Download extra infos from CollecTor. """
     url = "https://collector.torproject.org/archive/relay-descriptors/extra-infos"
@@ -102,7 +112,8 @@ def dl_extra_infos(year, month):
     try:
         request = urllib.request.urlopen("%s/%s" % (url, filename))
         if request.code != 200:
-            print("  [-] Unable to fetch extra infos %s at %s" % (filename, url))
+            print("  [-] Unable to fetch extra infos %s at %s" %
+                  (filename, url))
             return None
     except Exception as e:
         print("  [-] Unable to fetch %s/%s" % (url, filename))
@@ -112,6 +123,7 @@ def dl_extra_infos(year, month):
     fp.close()
     return save_path
 
+
 def uncompress(path, dst):
     # Remove .tar.xz
     dirname = path[:-7]
@@ -120,6 +132,7 @@ def uncompress(path, dst):
     print("  [+] Uncompressing %s into %s/%s" % (path, dst, dirname))
     with tarfile.open(path) as f:
         f.extractall(dst)
+
 
 def get_previous_data(year, month, day):
     # If day is undefined or if day is 1, we have to get the previous month
@@ -140,23 +153,27 @@ def get_previous_data(year, month, day):
         prev_ei_path = dl_extra_infos(prev_year, str_month)
     return prev_sd_path, prev_ei_path
 
+
 def create_csv_file(year, month, day):
     # Process the consensuses that we are interested in.
     csv_filename = 'data/relays-%s-%s-%s-00-00-00.csv' % \
-            (year, month, day)
+        (year, month, day)
     if os.path.exists(csv_filename):
         print("  [+] CSV %s exists, skipping!" % (csv_filename))
         return None
     csv = open(csv_filename, 'w+')
     print("  [+] Creating CSV file %s" % (csv_filename))
-    csv.write('Name,Fingerprint,Flags,IP,OrPort,ObservedBW,GuardClients,DirClients,Uptime,Longitude,Latitude)\n')
+    csv.write(
+        'Name,Fingerprint,Flags,IP,OrPort,ObservedBW,GuardClients,DirClients,Uptime,Longitude,Latitude)\n')
     return csv
+
 
 def client_ips_to_string(ei_dict, sep):
     l = []
     for key, value in ei_dict.items():
         l.append('%s:%s' % (key, value))
     return sep.join(l)
+
 
 def write_csv_data(consensus, sd_path, prev_sd_path, ei_path, prev_ei_path, year, month, day):
     """ Write data from consensus to CSV file """
@@ -173,13 +190,15 @@ def write_csv_data(consensus, sd_path, prev_sd_path, ei_path, prev_ei_path, year
 
         fp = desc.fingerprint
         digest = desc.digest.lower()
-        sd_filename = "%s/%s/%s/%s" % (sd_path[:-7], digest[0], digest[1], digest)
+        sd_filename = "%s/%s/%s/%s" % (sd_path[:-7],
+                                       digest[0], digest[1], digest)
         try:
             sd = next(parse_file(sd_filename))
         except Exception as e:
             if prev_sd_path is None:
                 continue
-            sd_filename = "%s/%s/%s/%s" % (prev_sd_path[:-7], digest[0], digest[1], digest)
+            sd_filename = "%s/%s/%s/%s" % (
+                prev_sd_path[:-7], digest[0], digest[1], digest)
             try:
                 sd = next(parse_file(sd_filename))
             except Exception as e:
@@ -191,13 +210,15 @@ def write_csv_data(consensus, sd_path, prev_sd_path, ei_path, prev_ei_path, year
         dir_ips = ""
         if sd.extra_info_digest is not None:
             digest = sd.extra_info_digest.lower()
-            ei_filename = "%s/%s/%s/%s" % (ei_path[:-7], digest[0], digest[1], digest)
+            ei_filename = "%s/%s/%s/%s" % (ei_path[:-7],
+                                           digest[0], digest[1], digest)
             try:
                 ei = next(parse_file(ei_filename))
             except Exception as e:
                 if prev_ei_path is None:
                     continue
-                ei_filename = "%s/%s/%s/%s" % (prev_ei_path[:-7], digest[0], digest[1], digest)
+                ei_filename = "%s/%s/%s/%s" % (
+                    prev_ei_path[:-7], digest[0], digest[1], digest)
                 try:
                     ei = next(parse_file(ei_filename))
                 except Exception as e:
@@ -226,10 +247,12 @@ def write_csv_data(consensus, sd_path, prev_sd_path, ei_path, prev_ei_path, year
             flag += "H"
 
         csv_fp.write("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" % (desc.nickname,
-            desc.fingerprint, flag, desc.address, desc.or_port,
-            float(sd.observed_bandwidth/1000.0/1000.0), entry_ips,
-            dir_ips, sd.uptime, lon, lat))
+                                                             desc.fingerprint, flag, desc.address, desc.or_port,
+                                                             float(
+                                                                 sd.observed_bandwidth/1000.0/1000.0), entry_ips,
+                                                             dir_ips, sd.uptime, lon, lat))
     csv_fp.close()
+
 
 def make_monthly_csv(year, month, day):
     """
@@ -265,12 +288,14 @@ def make_monthly_csv(year, month, day):
         match_found = True
         consensus_pathname = \
             "./consensuses/consensuses-%s-%s/%s/%s-%s-%s-00-00-00-consensus" % \
-                (year, str_month, dir_day, year, str_month, dir_day)
+            (year, str_month, dir_day, year, str_month, dir_day)
         print("  [+] Reading consensus %s" % (consensus_pathname))
         try:
-            consensus = next(parse_file(consensus_pathname, document_handler = DocumentHandler.DOCUMENT))
+            consensus = next(parse_file(consensus_pathname,
+                             document_handler=DocumentHandler.DOCUMENT))
         except Exception as e:
-            print("  [-] Consensus %s not found. Skipping!" % (consensus_pathname))
+            print("  [-] Consensus %s not found. Skipping!" %
+                  (consensus_pathname))
             continue
 
         # Nullify the previous path if we aren't the first of the month.
@@ -278,20 +303,22 @@ def make_monthly_csv(year, month, day):
             prev_ei_path = None
             prev_sd_path = None
         write_csv_data(consensus, sd_path, prev_sd_path, ei_path, prev_ei_path,
-                str(year), str_month, dir_day)
+                       str(year), str_month, dir_day)
 
     if match_found is False:
         print("  [-] Date not found in consensus")
     # Cleanup consensus and server descriptors for this month.
-    #shutil.rmtree(consensus_path)
-    #shutil.rmtree(sd_path)
-    #if prev_sd_path is not None:
+    # shutil.rmtree(consensus_path)
+    # shutil.rmtree(sd_path)
+    # if prev_sd_path is not None:
     #    shutil.rmtree(prev_sd_path)
+
 
 def make_yearly_csv(year):
     """ DOC DOC """
     for month in range(1, 12):
         make_monthly_csv(year, month, 0)
+
 
 def run(year, month, day):
     """
@@ -303,14 +330,16 @@ def run(year, month, day):
         make_yearly_csv(year)
 
     # Cleanup what's left if any.
-    #for dirname in os.listdir('./consensuses'):
+    # for dirname in os.listdir('./consensuses'):
     #    shutil.rmtree(dirname)
-    #for dirname in os.listdir('./server-descriptors'):
+    # for dirname in os.listdir('./server-descriptors'):
     #    shutil.rmtree(dirname)
+
 
 def usage():
     print("Usage: %s <YEAR> [<MONTH> [<DAY>]]" % (sys.argv[0]))
     sys.exit(1)
+
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
@@ -318,13 +347,11 @@ if __name__ == '__main__':
 
     # Make sure we have a GeoIP database (maxmind)
     if not os.path.isfile(GEOIP_FILENAME):
-        print("%s not found. It must be in the same directory as this script." % \
+        print("%s not found. It must be in the same directory as this script." %
               GEOIP_FILENAME)
-        print("Get the Maxmind city database here:")
-        print("-> https://dev.maxmind.com/geoip/legacy/geolite")
+        print("Get the Maxmind GeoIP2 city database here:")
+        print("-> https://dev.maxmind.com/geoip/geolite2-free-geolocation-data")
         sys.exit(1)
-    # Open GeoIP database.
-    geoip_db = pygeoip.GeoIP(GEOIP_FILENAME)
 
     month = day = 0
     try:
