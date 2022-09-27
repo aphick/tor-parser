@@ -1,5 +1,4 @@
-Tor Consensus and Server Descriptor Parser
-------------------------------------------
+## Tor Consensus and Server Descriptor Parser
 
 This is the version of the script that formats the data in a way that it is compatible with [Torflow](https://github.com/unchartedsoftware/torflow)
 
@@ -15,32 +14,30 @@ existent).
 
 Example:
 
-	$ python3 parse3.py 2010 07 09
-	> Only July 9th, 2010 will be processed.
+    $ python3 parse3.py 2010 07 09
+    > Only July 9th, 2010 will be processed.
 
-	$ python3 parse3.py 2010 08
-	> August of 2010 will be processed.
+    $ python3 parse3.py 2010 08
+    > August of 2010 will be processed.
 
-	$ python3 parse3.py 2010
-	> All 2010 will be processed.
+    $ python3 parse3.py 2010
+    > All 2010 will be processed.
 
-Note
-----
+## Note
 
 Decompression of lzma file (.xz) is not yet supported for Python 2. You'll have
 to uncompress them yourself for now.
 
-Requirements
-------------
+## Requirements
 
-	- Maxmind Geo IP city database in binary format (GeoLiteCity.dat).
-      https://dev.maxmind.com/geoip/legacy/geolite
+    - Maxmind GeoIP2 city database in binary format (GeoLite2-City.mmdb).
+      https://dev.maxmind.com/geoip/geolite2-free-geolocation-data
 
-	- pygeoip
-		$ pip install pygeoip
+    - geoip2
+    	$ pip install geoip2
 
-	- tarfile (Only for parse3.py)
-		$ pip install tarfile
+    - tarfile (Only for parse3.py)
+    	$ pip install tarfile
 
-	- Stem library - https://stem.torproject.org/
-		$ pip install stem
+    - Stem library - https://stem.torproject.org/
+    	$ pip install stem
