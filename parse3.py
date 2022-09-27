@@ -2,20 +2,20 @@ import os, sys
 import stem
 import urllib.request
 import time
-import pygeoip
+import geoip2.database
 import tarfile
 import shutil
 
 from stem.descriptor import DocumentHandler, parse_file
 
-GEOIP_FILENAME = "GeoLiteCity.dat"
-geoip_db = None
+GEOIP_FILENAME = "./GeoLite2-City.mmdb"
 
 def geo_ip_lookup(ip_address):
-    record = geoip_db.record_by_addr(ip_address)
-    if record is None:
-        return (False, False)
-    return (record['longitude'], record['latitude'])
+    with geoip2.database.Reader(GEOIP_FILENAME) as reader:
+        response = reader.city(ip_address)
+        if response is None:
+            return (False, False)
+        return (response.location.longitude, response.location.latitude)
 
 def dl_server_descriptors(year, month):
     """ Download server descriptors from CollecTor. """
@@ -320,11 +320,9 @@ if __name__ == '__main__':
     if not os.path.isfile(GEOIP_FILENAME):
         print("%s not found. It must be in the same directory as this script." % \
               GEOIP_FILENAME)
-        print("Get the Maxmind city database here:")
-        print("-> https://dev.maxmind.com/geoip/legacy/geolite")
+        print("Get the Maxmind GeoIP2 city database here:")
+        print("-> https://dev.maxmind.com/geoip/geolite2-free-geolocation-data")
         sys.exit(1)
-    # Open GeoIP database.
-    geoip_db = pygeoip.GeoIP(GEOIP_FILENAME)
 
     month = day = 0
     try:
